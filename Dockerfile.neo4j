@@ -1,0 +1,11 @@
+FROM neo4j:5.13.0
+
+RUN apt-get update && \
+    apt-get install -y \
+    curl \
+    netcat \
+    && rm -rf /var/lib/apt/lists/*
+
+# # Add a health check script
+# COPY scripts/neo4j-health.sh /neo4j-health.sh
+# RUN chmod +x /neo4j-health.sh 

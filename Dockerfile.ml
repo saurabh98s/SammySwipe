@@ -18,7 +18,4 @@ COPY ml/ ml/
 RUN mkdir -p ml/models ml/data
 
 # Set environment variables
-ENV PYTHONPATH=/app
-
-# Start the ML training service
-CMD ["python", "-m", "ml.training.train"] 
+ENV PYTHONPATH=/app 

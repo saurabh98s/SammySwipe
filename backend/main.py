@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .core.config import get_settings
 from .db.database import db
-from .api import auth, users, matches, chat
+from .api import auth, users, matches, chat, health
 
 settings = get_settings()
 
@@ -25,6 +25,7 @@ app.include_router(auth.router, prefix=settings.API_V1_STR, tags=["auth"])
 app.include_router(users.router, prefix=settings.API_V1_STR, tags=["users"])
 app.include_router(matches.router, prefix=settings.API_V1_STR, tags=["matches"])
 app.include_router(chat.router, prefix=settings.API_V1_STR, tags=["chat"])
+app.include_router(health.router, prefix=settings.API_V1_STR, tags=["health"])
 
 @app.on_event("startup")
 async def startup_event():

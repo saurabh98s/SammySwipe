@@ -1,9 +1,9 @@
 import os
 import sys
 from typing import List, Dict, Any
-from ..models.fraud_detection import FraudDetectionModel
-from ..models.user_metadata import UserMetadataAnalyzer
-from ..models.enhanced_matching import EnhancedMatchingModel
+from ml.models.fraud_detection import FraudDetectionModel
+from ml.models.user_metadata import UserMetadataAnalyzer
+from ml.models.enhanced_matching import EnhancedMatchingModel
 from neo4j import GraphDatabase
 import logging
 from datetime import datetime

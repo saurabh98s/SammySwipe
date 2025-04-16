@@ -25,7 +25,9 @@ class UserMetadataAnalyzer:
     def extract_features(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
         """Extract features from user metadata."""
         # Combine text data
-        text_data = f"{user_data.get('bio', '')} {' '.join(user_data.get('interests', []))}"
+        bio = user_data.get('bio', '') or ''
+        interests = user_data.get('interests', []) or []
+        text_data = f"{bio} {' '.join(interests)}"
         
         # Extract behavioral features
         behavioral_features = {
@@ -37,7 +39,7 @@ class UserMetadataAnalyzer:
         
         return {
             "text_data": text_data,
-            "interests": user_data.get("interests", []),
+            "interests": interests,
             **behavioral_features
         }
     
@@ -49,15 +51,15 @@ class UserMetadataAnalyzer:
         ]
         
         score = sum(1 for field in required_fields if user_data.get(field)) / len(required_fields)
-        return score
+        return float(score)
     
     def _calculate_activity_score(self, user_data: Dict[str, Any]) -> float:
         """Calculate user activity score."""
         factors = {
-            "login_frequency": user_data.get("login_frequency", 0),
-            "profile_updates": user_data.get("profile_updates", 0),
-            "message_count": user_data.get("message_count", 0),
-            "match_interactions": user_data.get("match_interactions", 0)
+            "login_frequency": float(user_data.get("login_frequency", 0) or 0),
+            "profile_updates": float(user_data.get("profile_updates", 0) or 0),
+            "message_count": float(user_data.get("message_count", 0) or 0),
+            "match_interactions": float(user_data.get("match_interactions", 0) or 0)
         }
         
         weights = {
@@ -72,10 +74,10 @@ class UserMetadataAnalyzer:
     def _calculate_social_score(self, user_data: Dict[str, Any]) -> float:
         """Calculate user social score."""
         factors = {
-            "matches_count": user_data.get("matches_count", 0),
-            "messages_received": user_data.get("messages_received", 0),
-            "likes_received": user_data.get("likes_received", 0),
-            "response_rate": user_data.get("response_rate", 0)
+            "matches_count": float(user_data.get("matches_count", 0) or 0),
+            "messages_received": float(user_data.get("messages_received", 0) or 0),
+            "likes_received": float(user_data.get("likes_received", 0) or 0),
+            "response_rate": float(user_data.get("response_rate", 0) or 0)
         }
         
         weights = {
@@ -90,10 +92,10 @@ class UserMetadataAnalyzer:
     def _calculate_engagement_score(self, user_data: Dict[str, Any]) -> float:
         """Calculate user engagement score."""
         factors = {
-            "avg_message_length": user_data.get("avg_message_length", 0),
-            "avg_response_time": user_data.get("avg_response_time", 0),
-            "profile_view_count": user_data.get("profile_view_count", 0),
-            "match_acceptance_rate": user_data.get("match_acceptance_rate", 0)
+            "avg_message_length": float(user_data.get("avg_message_length", 0) or 0),
+            "avg_response_time": float(user_data.get("avg_response_time", 0) or 0),
+            "profile_view_count": float(user_data.get("profile_view_count", 0) or 0),
+            "match_acceptance_rate": float(user_data.get("match_acceptance_rate", 0) or 0)
         }
         
         weights = {
@@ -107,15 +109,24 @@ class UserMetadataAnalyzer:
     
     def fit(self, user_data_list: List[Dict[str, Any]]):
         """Train the metadata analysis model."""
+        if not user_data_list:
+            raise ValueError("No training data provided")
+            
         features = [self.extract_features(user_data) for user_data in user_data_list]
         
         # Process text data
         text_data = [f["text_data"] for f in features]
-        text_vectors = self.text_vectorizer.fit_transform(text_data)
+        if not any(text_data):  # If all text data is empty
+            text_vectors = np.zeros((len(text_data), 1))
+        else:
+            text_vectors = self.text_vectorizer.fit_transform(text_data).toarray()
         
         # Process interests
         interests_data = [" ".join(f["interests"]) for f in features]
-        interest_vectors = self.interest_vectorizer.fit_transform(interests_data)
+        if not any(interests_data):  # If all interests are empty
+            interest_vectors = np.zeros((len(interests_data), 1))
+        else:
+            interest_vectors = self.interest_vectorizer.fit_transform(interests_data).toarray()
         
         # Combine features
         behavioral_features = np.array([[
@@ -127,15 +138,22 @@ class UserMetadataAnalyzer:
         
         # Combine all features
         combined_features = np.hstack([
-            text_vectors.toarray(),
-            interest_vectors.toarray(),
+            text_vectors,
+            interest_vectors,
             behavioral_features
         ])
         
-        # Reduce dimensionality
-        reduced_features = self.pca.fit_transform(combined_features)
+        # Reduce dimensionality if we have enough samples
+        if combined_features.shape[0] > 1:
+            n_components = min(50, combined_features.shape[0] - 1)
+            self.pca = PCA(n_components=n_components)
+            reduced_features = self.pca.fit_transform(combined_features)
+        else:
+            reduced_features = combined_features
         
-        # Cluster users
+        # Cluster users if we have enough samples
+        n_clusters = min(10, len(user_data_list))
+        self.clustering = KMeans(n_clusters=n_clusters, random_state=42)
         self.clustering.fit(reduced_features)
     
     def analyze_user(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -143,10 +161,18 @@ class UserMetadataAnalyzer:
         features = self.extract_features(user_data)
         
         # Process text data
-        text_vector = self.text_vectorizer.transform([features["text_data"]])
+        text_data = [features["text_data"]]
+        if not any(text_data):  # If text data is empty
+            text_vectors = np.zeros((1, 1))
+        else:
+            text_vectors = self.text_vectorizer.transform(text_data).toarray()
         
         # Process interests
-        interest_vector = self.interest_vectorizer.transform([" ".join(features["interests"])])
+        interests_data = [" ".join(features["interests"])]
+        if not any(interests_data):  # If interests are empty
+            interest_vectors = np.zeros((1, 1))
+        else:
+            interest_vectors = self.interest_vectorizer.transform(interests_data).toarray()
         
         # Combine features
         behavioral_features = np.array([[
@@ -158,8 +184,8 @@ class UserMetadataAnalyzer:
         
         # Combine all features
         combined_features = np.hstack([
-            text_vector.toarray(),
-            interest_vector.toarray(),
+            text_vectors,
+            interest_vectors,
             behavioral_features
         ])
         
