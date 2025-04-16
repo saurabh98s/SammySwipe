@@ -43,7 +43,8 @@ A modern dating application that uses social media interest analysis and machine
 
 4. Run the frontend:
    ```bash
-   streamlit run frontend/main.py
+   cd frontend-react
+   npm run dev
    ```
 
 ## Project Structure
@@ -56,7 +57,8 @@ A modern dating application that uses social media interest analysis and machine
 │   ├── db/
 │   ├── models/
 │   └── services/
-├── frontend/
+|___frontend (TODO: remove streamlit directly)
+├── frontend-react/
 │   ├── pages/
 │   └── components/
 ├── ml/
@@ -64,6 +66,15 @@ A modern dating application that uses social media interest analysis and machine
 │   └── pipeline/
 └── tests/
 ```
+
+## UI Demo
+
+<!-- [video ](/SammySwipe.mp4) -->
+
+<video width="640" height="360" controls>
+  <source src="/SammySwipe.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
 
 ## Contributing
 

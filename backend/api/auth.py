@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from datetime import timedelta
+from datetime import timedelta, datetime
 from ..core.config import get_settings
 from ..models.user import UserCreate, Token, UserResponse
 from ..services.auth import (
@@ -11,6 +11,7 @@ from ..services.auth import (
 from ..services.ml_integration import ml_service
 from ..db.database import db
 from typing import Any
+import uuid
 
 settings = get_settings()
 router = APIRouter()
@@ -101,8 +102,10 @@ async def register_test(user_in: UserCreate) -> Any:
     
     # Create user without fraud check
     hashed_password = get_password_hash(user_in.password)
+    user_id = str(uuid.uuid4())
     query = """
     CREATE (u:User {
+        id: $id,
         email: $email,
         username: $username,
         full_name: $full_name,
@@ -127,6 +130,7 @@ async def register_test(user_in: UserCreate) -> Any:
     
     user_data = user_in.dict()
     user_data["hashed_password"] = hashed_password
+    user_data["id"] = user_id
     result = db.execute_query(query, user_data)
     
     if not result:
@@ -134,8 +138,27 @@ async def register_test(user_in: UserCreate) -> Any:
             status_code=500,
             detail="Could not create user"
         )
+    
+    # Convert Neo4j DateTime to Python datetime
+    user_dict = dict(result[0]["u"])
+    if "birth_date" in user_dict:
+        # Handle Neo4j DateTime conversion
+        birth_date_str = str(user_dict["birth_date"])
+        # Remove any extra precision in microseconds
+        if "." in birth_date_str:
+            parts = birth_date_str.split(".")
+            if len(parts) > 1:
+                # Keep only 6 digits for microseconds
+                micros = parts[1][:6]
+                birth_date_str = f"{parts[0]}.{micros}{parts[1][-6:]}"
         
-    return UserResponse(**result[0]["u"])
+        # Ensure proper timezone format
+        if "Z" in birth_date_str:
+            birth_date_str = birth_date_str.replace("Z", "+00:00")
+        
+        user_dict["birth_date"] = datetime.fromisoformat(birth_date_str)
+        
+    return UserResponse(**user_dict)
 
 @router.post("/auth/token", response_model=Token)
 async def login(form_data: OAuth2PasswordRequestForm = Depends()) -> Any:
