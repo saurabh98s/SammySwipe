@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from datetime import timedelta, datetime
 from ..core.config import get_settings
 from ..models.user import UserCreate, Token, UserResponse
@@ -10,11 +10,16 @@ from ..services.auth import (
 )
 from ..services.ml_integration import ml_service
 from ..db.database import db
-from typing import Any
+from ..db.neo4j_client import store_social_raw_data
+from typing import Any, Dict
 import uuid
+import os
+import jwt
+from jwt.exceptions import PyJWTError
+# from ..services.social_api import social_api_service
 
 settings = get_settings()
-router = APIRouter()
+router = APIRouter(tags=["auth"])
 
 @router.post("/auth/register", response_model=UserResponse)
 async def register(user_in: UserCreate) -> Any:
@@ -199,4 +204,93 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()) -> Any:
     return {
         "access_token": access_token,
         "token_type": "bearer"
-    } 
+    }
+
+# Social Media OAuth endpoints
+
+# @router.get("/twitter")
+# async def twitter_auth_redirect():
+#     """Redirect to Twitter OAuth"""
+#     redirect_url = await social_api_service.twitter_oauth_redirect()
+#     return {"redirect_url": redirect_url}
+
+# @router.get("/twitter/callback")
+# async def twitter_auth_callback(code: str = Query(...), state: str = Query(...)):
+#     """Handle Twitter OAuth callback"""
+#     # Verify state parameter to prevent CSRF attacks (not implemented in this demo)
+    
+#     # Exchange code for token
+#     token_data = await social_api_service.twitter_oauth_callback(code)
+    
+#     # Fetch user data from Twitter
+#     user_data = await social_api_service.twitter_fetch_user_data(token_data["access_token"])
+    
+#     # Store raw data in Neo4j
+#     # In a real implementation, this would be linked to the user account
+#     user_id = "current_user_id"  # This would be the actual user ID
+#     await store_social_raw_data(user_id, "twitter", user_data)
+    
+#     # Return success response with option to redirect
+#     return {
+#         "success": True, 
+#         "message": "Twitter account connected successfully",
+#         "redirect_url": "/dashboard/profile"
+#     }
+
+# @router.get("/facebook")
+# async def facebook_auth_redirect():
+#     """Redirect to Facebook OAuth"""
+#     redirect_url = await social_api_service.facebook_oauth_redirect()
+#     return {"redirect_url": redirect_url}
+
+# @router.get("/facebook/callback")
+# async def facebook_auth_callback(code: str = Query(...), state: str = Query(...)):
+#     """Handle Facebook OAuth callback"""
+#     # Verify state parameter to prevent CSRF attacks (not implemented in this demo)
+    
+#     # Exchange code for token
+#     token_data = await social_api_service.facebook_oauth_callback(code)
+    
+#     # Fetch user data from Facebook
+#     user_data = await social_api_service.facebook_fetch_user_data(token_data["access_token"])
+    
+#     # Store raw data in Neo4j
+#     # In a real implementation, this would be linked to the user account
+#     user_id = "current_user_id"  # This would be the actual user ID
+#     await store_social_raw_data(user_id, "facebook", user_data)
+    
+#     # Return success response with option to redirect
+#     return {
+#         "success": True, 
+#         "message": "Facebook account connected successfully",
+#         "redirect_url": "/dashboard/profile"
+#     }
+
+# @router.get("/instagram")
+# async def instagram_auth_redirect():
+#     """Redirect to Instagram OAuth"""
+#     redirect_url = await social_api_service.instagram_oauth_redirect()
+#     return {"redirect_url": redirect_url}
+
+# @router.get("/instagram/callback")
+# async def instagram_auth_callback(code: str = Query(...), state: str = Query(...)):
+#     """Handle Instagram OAuth callback"""
+#     # Verify state parameter to prevent CSRF attacks (not implemented in this demo)
+    
+#     # Exchange code for token
+#     token_data = await social_api_service.instagram_oauth_callback(code)
+    
+#     # Fetch user data from Instagram
+#     user_data = await social_api_service.instagram_fetch_user_data(token_data["access_token"])
+    
+#     # Store raw data in Neo4j
+#     # In a real implementation, this would be linked to the user account
+#     user_id = "current_user_id"  # This would be the actual user ID
+#     await store_social_raw_data(user_id, "instagram", user_data)
+    
+#     # Return success response with option to redirect
+#     return {
+#         "success": True, 
+#         "message": "Instagram account connected successfully",
+#         "redirect_url": "/dashboard/profile"
+#     } 

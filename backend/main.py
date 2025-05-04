@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from .core.config import get_settings
 from .db.database import db
 from .api import auth, users, matches, chat, health
+from .db.neo4j_client import populate_database_with_random_users
+import asyncio
 
 settings = get_settings()
 
@@ -31,6 +33,14 @@ app.include_router(health.router, prefix=settings.API_V1_STR, tags=["health"])
 async def startup_event():
     # Create database constraints
     db.create_constraints()
+    
+    # Populate the database with random users if enabled
+    if settings.POPULATE_DB_ON_STARTUP:
+        try:
+            # Run user population in the background
+            asyncio.create_task(populate_database_with_random_users(1000))
+        except Exception as e:
+            app.logger.error(f"Failed to populate database with random users: {str(e)}")
 
 @app.on_event("shutdown")
 async def shutdown_event():

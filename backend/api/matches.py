@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
-from typing import Any, List
+from typing import Any, List, Dict
 from ..models.user import UserInDB, UserResponse, UserPreferences
 from ..services.auth import get_current_active_user
 from ..services.matching import get_matches, create_match, accept_match, reject_match
 from ..db.database import db
+from ..db.neo4j_client import get_recommendations_for_user
+import random
 
 router = APIRouter()
 
@@ -99,4 +101,52 @@ async def get_my_matches(
     return [
         UserResponse(**{**match["u2"], "match_score": match["match_score"]})
         for match in result
-    ] 
+    ]
+
+@router.post("/matches", tags=["matches"])
+async def get_potential_matches(current_user: UserInDB = Depends(get_current_active_user)) -> List[Dict[str, Any]]:
+    """
+    Get potential matches for the current user. Uses ML models to compute match scores.
+    """
+    # Get realistic recommendations using RandomUser API
+    recommendations = await get_recommendations_for_user(current_user.id, 10)
+    return recommendations
+
+@router.post("/users/{user_id}/like", tags=["matches"])
+async def like_user(user_id: str, current_user: UserInDB = Depends(get_current_active_user)):
+    """
+    Like a potential match
+    """
+    # In a real implementation, this would:
+    # 1. Record the like in the database
+    # 2. Check if the other user has already liked the current user (mutual match)
+    # 3. Return information about whether it's a match
+    
+    return {"success": True, "is_match": random.choice([True, False])}
+
+@router.get("/matches/my-matches", tags=["matches"])
+async def get_my_matches_old(current_user: UserInDB = Depends(get_current_active_user)) -> List[Dict[str, Any]]:
+    """
+    Get all users that have mutually matched with the current user
+    """
+    # Get 5 random realistic users for matches
+    user_recommendations = await get_recommendations_for_user(current_user.id, 5)
+    
+    # Transform them into matches with chat info
+    matches = []
+    for user in user_recommendations:
+        # Create a match with chat data
+        matches.append({
+            "user_id": user["id"],
+            "full_name": user["full_name"],
+            "profile_photo": user["profile_photo"],
+            "last_message": random.choice([
+                "Hey, how are you?",
+                "Nice to meet you!",
+                "What are you up to this weekend?",
+                None
+            ]),
+            "timestamp": "2023-12-15T12:34:56Z" if random.random() > 0.3 else None
+        })
+    
+    return matches 

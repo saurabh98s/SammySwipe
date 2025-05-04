@@ -19,6 +19,7 @@ interface LoginFormData {
 export default function LoginPage() {
   const router = useRouter();
   const login = useAuthStore((state) => state.login);
+  const loginAsSuperUser = useAuthStore((state) => state.loginAsSuperUser);
   const [isLoading, setIsLoading] = useState(false);
   
   const {
@@ -38,6 +39,12 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  const handleSuperUserLogin = () => {
+    loginAsSuperUser();
+    toast.success('Logged in as Super Admin');
+    router.push('/dashboard/discover');
   };
   
   return (
@@ -98,6 +105,20 @@ export default function LoginPage() {
                 {isLoading ? 'Signing in...' : 'Sign in'}
               </Button>
             </form>
+            
+            {/* Super User Button */}
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <Button 
+                variant="outline" 
+                className="w-full bg-amber-500/20 text-white border-amber-500/50 hover:bg-amber-500/30"
+                onClick={handleSuperUserLogin}
+              >
+                Enter as Super Admin
+              </Button>
+              <p className="text-white/50 text-xs mt-2 text-center">
+                Super admin mode bypasses all authentication
+              </p>
+            </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <div className="text-sm text-center">

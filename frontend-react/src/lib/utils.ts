@@ -1,12 +1,22 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
+/**
+ * Combines multiple class values into one using clsx and tailwind-merge
+ */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatDate(date: string) {
-  return new Date(date).toLocaleDateString('en-US', {
+/**
+ * Format a date to a readable string
+ */
+export function formatDate(date: Date | string): string {
+  if (!date) return '';
+  
+  const d = typeof date === 'string' ? new Date(date) : date;
+  
+  return d.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -26,9 +36,14 @@ export function calculateAge(birthDate: string) {
   return age;
 }
 
-export function truncateText(text: string, maxLength: number) {
-  if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength) + '...';
+/**
+ * Truncate a string to a specified length
+ */
+export function truncateString(str: string, length: number): string {
+  if (!str) return '';
+  if (str.length <= length) return str;
+  
+  return str.substring(0, length) + '...';
 }
 
 export function getInitials(name: string) {

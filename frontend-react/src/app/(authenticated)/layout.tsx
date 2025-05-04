@@ -14,15 +14,16 @@ export default function AuthenticatedLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, logout } = useAuthStore();
+  const { user, logout, isSuperUser } = useAuthStore();
 
   useEffect(() => {
-    if (!user) {
+    // If not logged in and not in superuser mode, redirect to login
+    if (!user && !isSuperUser) {
       router.push('/login');
     }
-  }, [user, router]);
+  }, [user, isSuperUser, router]);
 
-  if (!user) {
+  if (!user && !isSuperUser) {
     return null;
   }
 
@@ -30,6 +31,7 @@ export default function AuthenticatedLayout({
     { name: 'Matches', href: '/matches' },
     { name: 'Chat', href: '/chat' },
     { name: 'Profile', href: '/profile' },
+    { name: 'Dashboard', href: '/dashboard' },
   ];
 
   const handleLogout = () => {
@@ -77,9 +79,20 @@ export default function AuthenticatedLayout({
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-white/90">
-                Welcome, {user.full_name}
-              </span>
+              {isSuperUser ? (
+                <div className="flex items-center gap-2">
+                  <span className="bg-amber-500/20 text-amber-200 text-xs px-2 py-1 rounded-full border border-amber-500/50">
+                    SUPER ADMIN MODE
+                  </span>
+                  <span className="text-sm text-white/90">
+                    Super Admin
+                  </span>
+                </div>
+              ) : (
+                <span className="text-sm text-white/90">
+                  Welcome, {user?.full_name}
+                </span>
+              )}
               <Button
                 variant="glass"
                 onClick={handleLogout}

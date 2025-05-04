@@ -82,4 +82,62 @@ Please read CONTRIBUTING.md for details on our code of conduct and the process f
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Realistic User Data Integration
+
+The application now uses the RandomUser API (https://randomuser.me) to provide realistic user data throughout the system:
+
+1. **Backend Integration**:
+   - The Neo4j database can be populated with 1000+ realistic user profiles
+   - Each user has realistic attributes: name, photo, location, interests, etc.
+   - The matching algorithm uses these users to provide realistic recommendations
+
+2. **Superuser Mode**:
+   - Superuser can access all parts of the application without authentication
+   - When in superuser mode, all API responses contain realistic user data from RandomUser API
+   - The UI displays real names, photos, and profile information
+
+## Database Population
+
+To populate the Neo4j database with realistic user data:
+
+```bash
+# From the backend directory
+cd backend
+python -m scripts.populate_users
+```
+
+You can specify the number of users to generate:
+
+```bash
+python -m scripts.populate_users --count 500
+```
+
+## Superuser Access
+
+To access the application as a superuser:
+
+1. Go to the login page
+2. Click "Enter as Super Admin"
+3. You'll be logged in with full access to all features
+4. The application will display "SUPER ADMIN MODE" in the header
+
+## Configuration
+
+The following environment variables control the behavior:
+
+- `POPULATE_DB_ON_STARTUP`: Set to "True" to automatically populate the database on application startup (default: "True")
+- `RANDOM_USER_COUNT`: Number of random users to fetch and store (default: 1000)
+
+## Implementation Details
+
+The integration with RandomUser API is implemented in:
+
+- `backend/db/neo4j_client.py`: Functions to fetch and store random users
+- `backend/api/matches.py`: Updated to use realistic recommendations
+- `frontend-react/src/lib/api.ts`: Modified API interceptors for superuser mode
+
+## Credits
+
+This application uses data from the RandomUser API (https://randomuser.me), which provides randomly generated user data for testing and demonstration purposes. 

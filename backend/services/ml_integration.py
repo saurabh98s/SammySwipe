@@ -1,78 +1,67 @@
 import os
 from typing import Dict, Any, List
 from ..models.user import UserInDB, UserPreferences
-from ml.models.fraud_detection import FraudDetectionModel
-from ml.models.user_metadata import UserMetadataAnalyzer
-from ml.models.enhanced_matching import EnhancedMatchingModel
 import logging
+import random
 
 logger = logging.getLogger(__name__)
 
+# Mock ML models
+class MockUserMetadataAnalyzer:
+    @staticmethod
+    def load_model(path):
+        logger.info(f"Loading mock metadata analyzer model (ignoring path: {path})")
+        return MockUserMetadataAnalyzer()
+        
+    def analyze_user(self, user_data):
+        # Generate random metadata for the user
+        return {
+            "personality_traits": {
+                "openness": round(random.uniform(0.3, 0.9), 2),
+                "conscientiousness": round(random.uniform(0.3, 0.9), 2),
+                "extroversion": round(random.uniform(0.3, 0.9), 2),
+                "agreeableness": round(random.uniform(0.3, 0.9), 2),
+                "neuroticism": round(random.uniform(0.3, 0.9), 2)
+            },
+            "interests": {
+                "travel": round(random.uniform(0.2, 0.9), 2),
+                "food": round(random.uniform(0.2, 0.9), 2),
+                "music": round(random.uniform(0.2, 0.9), 2),
+                "sports": round(random.uniform(0.2, 0.9), 2),
+                "tech": round(random.uniform(0.2, 0.9), 2),
+                "arts": round(random.uniform(0.2, 0.9), 2)
+            }
+        }
+
+class MockEnhancedMatchingModel:
+    @staticmethod
+    def load_model(path):
+        logger.info(f"Loading mock matching model (ignoring path: {path})")
+        return MockEnhancedMatchingModel()
+        
+    def get_matches(self, user, user_metadata, candidates, candidate_metadata):
+        # For each candidate, generate a random match score
+        return [
+            {**candidate, "match_score": round(random.uniform(0.4, 0.95), 2)}
+            for candidate in candidates
+        ]
+
 class MLService:
     def __init__(self):
-        model_path = os.getenv("MODEL_PATH", "backend/ml/models") # Use relative path
-        logger.info(f"Attempting to load ML models from: {os.path.abspath(model_path)}")
-
-        # Define model filenames
-        metadata_model_file = "metadata_analyzer_okcupid.joblib"
-        matching_model_file = "matching_model_okcupid.joblib"
-        # fraud_model_file = "fraud_detection.joblib" # If you have one
-
-        # Load metadata analyzer
-        try:
-            metadata_model_path = os.path.join(model_path, metadata_model_file)
-            self.metadata_analyzer = UserMetadataAnalyzer.load_model(metadata_model_path)
-            logger.info(f"Successfully loaded metadata analyzer model from {metadata_model_path}")
-        except FileNotFoundError:
-            logger.error(f"Metadata analyzer model file not found at {metadata_model_path}. Check MODEL_PATH env var or path.")
-            self.metadata_analyzer = None
-        except Exception as e:
-            logger.warning(f"Could not load metadata analyzer model from {metadata_model_path}: {e}")
-            self.metadata_analyzer = None
-
-        # Load matching model
-        try:
-            matching_model_path = os.path.join(model_path, matching_model_file)
-            self.matching_model = EnhancedMatchingModel.load_model(matching_model_path)
-            logger.info(f"Successfully loaded matching model from {matching_model_path}")
-        except FileNotFoundError:
-            logger.error(f"Matching model file not found at {matching_model_path}. Check MODEL_PATH env var or path.")
-            self.matching_model = None
-        except Exception as e:
-            logger.warning(f"Could not load matching model from {matching_model_path}: {e}")
-            self.matching_model = None
-
-        # Load fraud detection model (example if needed)
-        # try:
-        #     fraud_model_path = os.path.join(model_path, fraud_model_file)
-        #     self.fraud_model = FraudDetectionModel.load_model(fraud_model_path)
-        #     logger.info(f"Successfully loaded fraud detection model from {fraud_model_path}")
-        # except FileNotFoundError:
-        #     logger.error(f"Fraud detection model file not found at {fraud_model_path}.")
-        #     self.fraud_model = None
-        # except Exception as e:
-        #     logger.warning(f"Could not load fraud detection model: {e}")
-        #     self.fraud_model = None
+        # Use mock models regardless of file paths
+        self.metadata_analyzer = MockUserMetadataAnalyzer()
+        self.matching_model = MockEnhancedMatchingModel()
+        self.fraud_model = None  # Not needed for testing
+        
+        logger.info("Initialized mock ML service with mock models")
 
     def check_fraud(self, user_data: Dict[str, Any]) -> bool:
         """Check if a user is potentially fraudulent."""
-        # During testing, always return False
+        # Always return False for testing
         return False
-        
-        if not self.fraud_model:
-            return False
-            
-        try:
-            return self.fraud_model.predict(user_data)
-        except Exception as e:
-            logger.error(f"Error in fraud detection: {e}")
-            return False
     
     def analyze_user(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Analyze user metadata."""
-        if not self.metadata_analyzer:
-            return {}
-            
+        """Analyze user metadata using mock analyzer."""
         try:
             return self.metadata_analyzer.analyze_user(user_data)
         except Exception as e:
@@ -85,10 +74,7 @@ class MLService:
         preferences: UserPreferences,
         candidates: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
-        """Get enhanced matches using ML model."""
-        if not self.matching_model or not self.metadata_analyzer:
-            return []
-            
+        """Get enhanced matches using mock matching model."""
         try:
             # Get user metadata
             user_metadata = self.analyze_user(user.dict())
@@ -99,7 +85,7 @@ class MLService:
                 for candidate in candidates
             ]
             
-            # Get matches using the enhanced matching model
+            # Get matches using the mock matching model
             matches = self.matching_model.get_matches(
                 user.dict(),
                 user_metadata,

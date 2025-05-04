@@ -154,14 +154,20 @@ export default function MatchesPage() {
                 <div>
                   <h3 className="font-semibold mb-2">Interests</h3>
                   <div className="flex flex-wrap gap-2">
-                    {currentMatch.interests.map((interest) => (
-                      <span
-                        key={interest}
-                        className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm"
-                      >
-                        {interest}
+                    {currentMatch.interests && currentMatch.interests.length > 0 ? (
+                      currentMatch.interests.map((interest) => (
+                        <span
+                          key={interest}
+                          className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm"
+                        >
+                          {interest}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm">
+                        No interests listed
                       </span>
-                    ))}
+                    )}
                   </div>
                 </div>
                 <div className="mt-4">

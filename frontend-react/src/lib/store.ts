@@ -16,12 +16,17 @@ interface User {
   match_score?: number;
 }
 
+// Extended interface with superuser capabilities
 interface AuthState {
   token: string | null;
   user: User | null;
   isLoading: boolean;
   error: string | null;
+  isSuperUser: boolean;
+  enableSuperUser: () => void;
+  disableSuperUser: () => void;
   login: (email: string, password: string) => Promise<void>;
+  loginAsSuperUser: () => void;
   register: (userData: any) => Promise<void>;
   logout: () => void;
   fetchUser: () => Promise<void>;
@@ -34,6 +39,37 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isLoading: false,
       error: null,
+      isSuperUser: false,
+      
+      // New superuser functions
+      enableSuperUser: () => {
+        set({ isSuperUser: true });
+      },
+      
+      disableSuperUser: () => {
+        set({ isSuperUser: false });
+      },
+      
+      loginAsSuperUser: () => {
+        // Create a mock superuser with all access
+        const superUser: User = {
+          id: 'super-admin',
+          email: 'superuser@sammyswipe.com',
+          username: 'superadmin',
+          full_name: 'Super Admin',
+          gender: 'other',
+          birth_date: new Date().toISOString(),
+          bio: 'System administrator with full access',
+          interests: ['system administration', 'security'],
+          location: 'System',
+          profile_photo: '/images/admin.png',
+        };
+        set({ 
+          user: superUser, 
+          isSuperUser: true,
+          token: 'super-admin-token'
+        });
+      },
       
       login: async (email: string, password: string) => {
         set({ isLoading: true, error: null });
@@ -44,6 +80,7 @@ export const useAuthStore = create<AuthState>()(
           await get().fetchUser();
         } catch (error: any) {
           set({ error: error.response?.data?.detail || 'Login failed' });
+          throw error;
         } finally {
           set({ isLoading: false });
         }
@@ -56,6 +93,7 @@ export const useAuthStore = create<AuthState>()(
           // After registration, redirect to login
         } catch (error: any) {
           set({ error: error.response?.data?.detail || 'Registration failed' });
+          throw error;
         } finally {
           set({ isLoading: false });
         }
@@ -63,12 +101,12 @@ export const useAuthStore = create<AuthState>()(
       
       logout: () => {
         localStorage.removeItem('token');
-        set({ token: null, user: null });
+        set({ token: null, user: null, isSuperUser: false });
       },
       
       fetchUser: async () => {
-        const { token } = get();
-        if (!token) return;
+        const { token, isSuperUser } = get();
+        if (!token || isSuperUser) return;
         
         set({ isLoading: true, error: null });
         try {
@@ -76,6 +114,7 @@ export const useAuthStore = create<AuthState>()(
           set({ user });
         } catch (error: any) {
           set({ error: error.response?.data?.detail || 'Failed to fetch user data' });
+          throw error;
         } finally {
           set({ isLoading: false });
         }
@@ -83,7 +122,10 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      partialize: (state) => ({ token: state.token }),
+      partialize: (state) => ({ 
+        token: state.token,
+        isSuperUser: state.isSuperUser
+      }),
     }
   )
 ); 

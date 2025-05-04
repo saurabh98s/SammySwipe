@@ -1,15 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Body
 from typing import Any, List, Dict
 from ..models.user import UserInDB
 from ..services.auth import get_current_active_user
 from ..db.database import db
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
+import random
+from pydantic import BaseModel
 
 router = APIRouter()
 
 # Store active websocket connections
 active_connections: Dict[str, WebSocket] = {}
+
+class MessageContent(BaseModel):
+    content: str
 
 @router.websocket("/ws/chat/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: str):
@@ -115,4 +120,73 @@ async def mark_messages_as_read(
         }
     )
     
-    return {"messages_marked_read": result[0]["updated"]} 
+    return {"messages_marked_read": result[0]["updated"]}
+
+@router.get("/{user_id}/history", tags=["chat"])
+async def get_chat_history(user_id: str, current_user: UserInDB = Depends(get_current_active_user)) -> List[Dict[str, Any]]:
+    """
+    Get chat history with a specific user
+    """
+    # This would normally query the database for chat history
+    # For demonstration, we'll generate some sample data
+    
+    # Generate timestamps over the last 2 days
+    now = datetime.now()
+    timestamps = []
+    for i in range(random.randint(3, 15)):
+        hours_ago = random.randint(1, 48)
+        timestamps.append(now - timedelta(hours=hours_ago))
+    
+    # Sort chronologically
+    timestamps.sort()
+    
+    # Sample message content
+    sample_messages = [
+        "Hey there!",
+        "How's it going?",
+        "Nice to match with you!",
+        "What are your plans for the weekend?",
+        "Have you seen that new movie?",
+        "I love your profile pic!",
+        "What kind of music do you like?",
+        "Do you enjoy traveling?",
+        "What's your favorite food?",
+        "I'm really enjoying our conversation!",
+        "Would you like to grab coffee sometime?",
+        "That's interesting!",
+        "Tell me more about yourself",
+        "I'm a big fan of hiking too!"
+    ]
+    
+    messages = []
+    for i, timestamp in enumerate(timestamps):
+        sender_id = user_id if random.random() > 0.5 else current_user.id
+        messages.append({
+            "id": f"msg_{i}",
+            "sender_id": sender_id,
+            "content": random.choice(sample_messages),
+            "timestamp": timestamp.isoformat(),
+            "is_read": True if timestamp < now - timedelta(hours=1) else False
+        })
+    
+    return messages
+
+@router.post("/{user_id}", tags=["chat"])
+async def send_message(
+    user_id: str, 
+    message: MessageContent, 
+    current_user: UserInDB = Depends(get_current_active_user)
+) -> Dict[str, Any]:
+    """
+    Send a message to a specific user
+    """
+    # This would normally save the message to the database
+    # For demonstration, we'll just echo back the message
+    
+    return {
+        "id": f"msg_{random.randint(1000, 9999)}",
+        "sender_id": current_user.id,
+        "content": message.content,
+        "timestamp": datetime.now().isoformat(),
+        "is_read": False
+    } 

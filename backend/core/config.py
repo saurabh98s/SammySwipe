@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     # ML Model settings
     MODEL_PATH: str = "ml/models"
     
+    # Database population settings
+    POPULATE_DB_ON_STARTUP: bool = os.getenv("POPULATE_DB_ON_STARTUP", "True").lower() == "true"
+    RANDOM_USER_COUNT: int = int(os.getenv("RANDOM_USER_COUNT", "1000"))
+    
     class Config:
         case_sensitive = True
 
