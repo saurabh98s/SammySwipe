@@ -10,35 +10,50 @@ logger = logging.getLogger(__name__)
 
 class MLService:
     def __init__(self):
-        model_path = os.getenv("MODEL_PATH", "ml/models")
-        
-        # Load fraud detection model
-        try:
-            self.fraud_model = FraudDetectionModel.load_model(
-                os.path.join(model_path, "fraud_detection.joblib")
-            )
-        except Exception as e:
-            logger.warning(f"Could not load fraud detection model: {e}")
-            self.fraud_model = None
-        
+        model_path = os.getenv("MODEL_PATH", "backend/ml/models") # Use relative path
+        logger.info(f"Attempting to load ML models from: {os.path.abspath(model_path)}")
+
+        # Define model filenames
+        metadata_model_file = "metadata_analyzer_okcupid.joblib"
+        matching_model_file = "matching_model_okcupid.joblib"
+        # fraud_model_file = "fraud_detection.joblib" # If you have one
+
         # Load metadata analyzer
         try:
-            self.metadata_analyzer = UserMetadataAnalyzer.load_model(
-                os.path.join(model_path, "metadata_analyzer.joblib")
-            )
-        except Exception as e:
-            logger.warning(f"Could not load metadata analyzer: {e}")
+            metadata_model_path = os.path.join(model_path, metadata_model_file)
+            self.metadata_analyzer = UserMetadataAnalyzer.load_model(metadata_model_path)
+            logger.info(f"Successfully loaded metadata analyzer model from {metadata_model_path}")
+        except FileNotFoundError:
+            logger.error(f"Metadata analyzer model file not found at {metadata_model_path}. Check MODEL_PATH env var or path.")
             self.metadata_analyzer = None
-        
+        except Exception as e:
+            logger.warning(f"Could not load metadata analyzer model from {metadata_model_path}: {e}")
+            self.metadata_analyzer = None
+
         # Load matching model
         try:
-            self.matching_model = EnhancedMatchingModel.load_model(
-                os.path.join(model_path, "matching_model.joblib")
-            )
-        except Exception as e:
-            logger.warning(f"Could not load matching model: {e}")
+            matching_model_path = os.path.join(model_path, matching_model_file)
+            self.matching_model = EnhancedMatchingModel.load_model(matching_model_path)
+            logger.info(f"Successfully loaded matching model from {matching_model_path}")
+        except FileNotFoundError:
+            logger.error(f"Matching model file not found at {matching_model_path}. Check MODEL_PATH env var or path.")
             self.matching_model = None
-    
+        except Exception as e:
+            logger.warning(f"Could not load matching model from {matching_model_path}: {e}")
+            self.matching_model = None
+
+        # Load fraud detection model (example if needed)
+        # try:
+        #     fraud_model_path = os.path.join(model_path, fraud_model_file)
+        #     self.fraud_model = FraudDetectionModel.load_model(fraud_model_path)
+        #     logger.info(f"Successfully loaded fraud detection model from {fraud_model_path}")
+        # except FileNotFoundError:
+        #     logger.error(f"Fraud detection model file not found at {fraud_model_path}.")
+        #     self.fraud_model = None
+        # except Exception as e:
+        #     logger.warning(f"Could not load fraud detection model: {e}")
+        #     self.fraud_model = None
+
     def check_fraud(self, user_data: Dict[str, Any]) -> bool:
         """Check if a user is potentially fraudulent."""
         # During testing, always return False

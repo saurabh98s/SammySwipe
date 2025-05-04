@@ -85,38 +85,67 @@ class UserMetadataAnalyzer(BaseModel):
         return texts
 
     def _calculate_activity_score(self, user_data: Dict[str, Any]) -> float:
-        """Calculate user activity score."""
+        """Calculate user activity score based on available data."""
         score = 0.0
-        
-        # Profile updates
-        if "profile_updates" in user_data:
-            score += min(user_data["profile_updates"] / 10, 1.0)
-        
-        # Login frequency
-        if "login_frequency" in user_data:
-            score += min(user_data["login_frequency"] / 30, 1.0)
-        
-        # Message count
-        if "message_count" in user_data:
-            score += min(user_data["message_count"] / 100, 1.0)
-        
-        return score / 3.0
+        num_factors = 0
+
+        # Use get with default 0 for potentially missing fields
+        profile_updates = user_data.get("profile_updates", 0) or 0
+        login_frequency = user_data.get("login_frequency", 0) or 0
+        message_count = user_data.get("message_count", 0) or 0
+
+        # Check if fields exist and contribute to score
+        if profile_updates is not None:
+            # Normalize based on expected range (e.g., 10 updates = full score)
+            score += min(float(profile_updates) / 10.0, 1.0)
+            num_factors += 1
+
+        if login_frequency is not None:
+            # Normalize (e.g., 30 logins/period = full score) - adjust if definition changes
+            score += min(float(login_frequency) / 30.0, 1.0)
+            num_factors += 1
+
+        if message_count is not None:
+            # Normalize (e.g., 100 messages = full score)
+            score += min(float(message_count) / 100.0, 1.0)
+            num_factors += 1
+
+        # Return average score over available factors
+        return score / num_factors if num_factors > 0 else 0.0
 
     def _calculate_profile_completeness(self, user_data: Dict[str, Any]) -> float:
-        """Calculate profile completeness score."""
+        """Calculate profile completeness score based on likely available fields."""
+        # Adjust this list based on fields reliably present in your Neo4j User nodes
+        # Removed birth_date (often derived), full_name (may not be essential)
         required_fields = [
-            "bio", "interests", "location", "profile_photo",
-            "full_name", "gender", "birth_date"
+            "bio",           # Text content
+            "interests",     # List of interests
+            "location",      # User location
+            "profile_photo", # Presence of a photo URL
+            "gender",        # User gender
+            "age"            # User age (more reliable than birth_date)
+            # Add other fields you deem important for a 'complete' profile
+            # e.g., "job", "education"
         ]
-        
-        completed = sum(1 for field in required_fields if field in user_data and user_data[field])
-        return completed / len(required_fields)
+
+        completed_count = 0
+        for field in required_fields:
+            value = user_data.get(field)
+            # Check for presence and non-emptiness (for strings/lists)
+            if value is not None and value != "" and value != []:
+                completed_count += 1
+
+        total_fields = len(required_fields)
+        completeness = float(completed_count) / total_fields if total_fields > 0 else 0.0
+        # logger.debug(f"Completeness for user {user_data.get('id', '?')}: {completed_count}/{total_fields} = {completeness:.2f}")
+        return completeness
 
     def _get_engagement_level(self, activity_score: float) -> str:
         """Get user engagement level based on activity score."""
-        if activity_score >= 0.8:
+        # These thresholds might need tuning based on observed activity scores
+        if activity_score >= 0.7: # Adjusted threshold example
             return "high"
-        elif activity_score >= 0.4:
+        elif activity_score >= 0.3: # Adjusted threshold example
             return "medium"
         else:
             return "low" 
