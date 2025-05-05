@@ -237,6 +237,16 @@ export const matches = {
     return response.data;
   },
   
+  getPendingLikes: async () => {
+    const response = await api.get('/matches/my-pending-likes');
+    return response.data;
+  },
+  
+  getMatchStatistics: async () => {
+    const response = await api.get('/matches/statistics');
+    return response.data;
+  },
+  
   like: async (userId: string) => {
     const response = await api.post(`/matches/${userId}`);
     return response.data;

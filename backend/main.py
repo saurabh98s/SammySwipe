@@ -5,6 +5,7 @@ from .db.database import db
 from .api import auth, users, matches, chat, health
 from .db.neo4j_client import populate_database_with_random_users
 import asyncio
+import logging
 
 settings = get_settings()
 
@@ -31,16 +32,35 @@ app.include_router(health.router, prefix=settings.API_V1_STR, tags=["health"])
 
 @app.on_event("startup")
 async def startup_event():
+    # Set up logging for the app
+    logger = logging.getLogger("uvicorn")
+    
     # Create database constraints
-    db.create_constraints()
+    try:
+        db.create_constraints()
+        logger.info("Database constraints created successfully")
+    except Exception as e:
+        logger.error(f"Failed to create database constraints: {str(e)}")
     
     # Populate the database with random users if enabled
     if settings.POPULATE_DB_ON_STARTUP:
         try:
-            # Run user population in the background
-            asyncio.create_task(populate_database_with_random_users(1000))
+            # Check if database already has users
+            query = "MATCH (u:User) RETURN count(u) as user_count"
+            result = db.execute_query(query)
+            existing_users = result[0]["user_count"] if result else 0
+            
+            if existing_users > 0:
+                logger.info(f"Database already contains {existing_users} users. Skipping population.")
+            else:
+                logger.info(f"Populating database with {settings.RANDOM_USER_COUNT} random users...")
+                # Starting population process in the background
+                asyncio.create_task(populate_database_with_random_users(settings.RANDOM_USER_COUNT))
+                logger.info("User population task started in the background")
         except Exception as e:
-            app.logger.error(f"Failed to populate database with random users: {str(e)}")
+            logger.error(f"Failed to initiate database population: {str(e)}")
+    else:
+        logger.info("Automatic database population is disabled")
 
 @app.on_event("shutdown")
 async def shutdown_event():

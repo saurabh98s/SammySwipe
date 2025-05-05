@@ -41,38 +41,73 @@ async def fetch_random_users(count: int = 1000) -> List[Dict[str, Any]]:
 async def store_random_users_in_neo4j(users: List[Dict[str, Any]]) -> bool:
     """
     Store random users in Neo4j database
-    
-    In a real implementation, this would create User nodes in Neo4j
     """
     try:
         logger.info(f"Storing {len(users)} users in Neo4j")
         
-        # In a real implementation, we would use a batch operation to store all users
-        # For demonstration, we'll just log the operation
+        # Import database module here to avoid circular imports
+        from ..db.database import db
         
-        for user in users:
-            # Extract relevant user data
-            user_data = {
-                "id": user["login"]["uuid"],
-                "email": user["email"],
-                "username": user["login"]["username"],
-                "full_name": f"{user['name']['first']} {user['name']['last']}",
-                "gender": user["gender"],
-                "birth_date": user["dob"]["date"],
-                "location": f"{user['location']['city']}, {user['location']['country']}",
-                "profile_photo": user["picture"]["large"],
-                "interests": generate_random_interests_for_user(),
-                "match_score": round(float(user["location"]["coordinates"]["latitude"]) / 100.0, 2),
-                "bio": f"Hi, I'm {user['name']['first']}! I'm from {user['location']['city']} and enjoy meeting new people."
-            }
+        # Define the Cypher query for user batch creation
+        query = """
+        UNWIND $users as user
+        MERGE (u:User {id: user.id})
+        ON CREATE SET 
+            u.email = user.email,
+            u.username = user.username,
+            u.full_name = user.full_name,
+            u.gender = user.gender,
+            u.birth_date = user.birth_date,
+            u.location = user.location,
+            u.profile_photo = user.profile_photo,
+            u.interests = user.interests,
+            u.bio = user.bio,
+            u.created_at = datetime(),
+            u.updated_at = datetime(),
+            u.is_active = true,
+            u.is_verified = true,
+            u.login_frequency = 0,
+            u.profile_updates = 0,
+            u.reported_count = 0,
+            u.suspicious_login_count = 0,
+            u.match_score = user.match_score
+        """
+        
+        # Create batches of 100 users to avoid memory issues
+        batch_size = 100
+        for i in range(0, len(users), batch_size):
+            batch = users[i:i+batch_size]
+            user_batch = []
             
-            # Log user creation (in real implementation, we would create a user node)
-            logger.debug(f"Creating user: {user_data['full_name']} ({user_data['email']})")
+            for user in batch:
+                # Extract relevant user data
+                user_data = {
+                    "id": user["login"]["uuid"],
+                    "email": user["email"],
+                    "username": user["login"]["username"],
+                    "full_name": f"{user['name']['first']} {user['name']['last']}",
+                    "gender": user["gender"],
+                    "birth_date": user["dob"]["date"],
+                    "location": f"{user['location']['city']}, {user['location']['country']}",
+                    "profile_photo": user["picture"]["large"],
+                    "interests": generate_random_interests_for_user(),
+                    "match_score": round(float(abs(int(user["location"]["coordinates"]["latitude"]))) / 100.0, 2) % 1.0,
+                    "bio": f"Hi, I'm {user['name']['first']}! I'm from {user['location']['city']} and enjoy meeting new people."
+                }
+                
+                # Ensure match score is between 0.4 and 0.95
+                if user_data["match_score"] < 0.4:
+                    user_data["match_score"] += 0.4
+                elif user_data["match_score"] > 0.95:
+                    user_data["match_score"] = 0.95
+                    
+                user_batch.append(user_data)
             
-            # Create Cypher query for user creation
-            # MERGE (u:User {id: $id})
-            # SET u.email = $email, u.username = $username, ... (other properties)
-            
+            # Execute batch creation in database
+            db.execute_query(query, {"users": user_batch})
+            logger.info(f"Stored batch of {len(user_batch)} users (total progress: {i+len(batch)}/{len(users)})")
+        
+        logger.info(f"Successfully stored all {len(users)} users in Neo4j")
         return True
     except Exception as e:
         logger.error(f"Error storing random users in Neo4j: {str(e)}")
@@ -103,6 +138,13 @@ async def populate_database_with_random_users(count: int = 1000) -> bool:
     Returns:
         True if successful, False otherwise
     """
+    # Check if in superadmin mode
+    superadmin_mode = os.getenv("SUPERADMIN_MODE", "False").lower() == "true"
+    
+    if superadmin_mode:
+        logger.info(f"Skipping database population in superadmin mode")
+        return True
+        
     # Fetch users from RandomUser API
     users = await fetch_random_users(count)
     
@@ -141,40 +183,42 @@ async def store_social_raw_data(user_id: str, source: str, data: Dict[str, Any])
 
 async def get_user_raw_interests(user_id: str) -> Dict[str, Any]:
     """
-    Retrieve user's raw social media data from Neo4j
-    
-    In a real implementation, this would execute:
-    MATCH (u:User {id:user_id})-[:RAW_INTEREST]->(r:RawBlob)
-    RETURN r.data, r.source
+    Retrieve a single random user from RandomUser.me
+    and generate demo “raw social” data (tweets/posts) for them.
     """
-    # For demonstration, return more realistic data
+    # Fetch exactly one random user
+    users = await fetch_random_users(1)
+    if not users:
+        return {}
+
+    u = users[0]
+    first = u["name"]["first"]
+    city  = u["location"]["city"]
+    country = u["location"]["country"]
+
+    # Build templated posts using that real user’s name & location
+    twitter_posts = [
+        {"text": f"Hey, I'm {first} from {city}! Loving this new app. #social #demo"},
+        {"text": f"Just explored {city}, {country}—absolutely stunning! 🌄 #travel"},
+        {"text": f"Tech geek alert 🚨 Trying out the latest gadget. #innovation"}
+    ]
+    instagram_posts = [
+        {"caption": f"Sunset over {city} is unreal 🌅 #nofilter"},
+        {"caption": f"Coffee and code ☕💻 #developerLife"},
+        {"caption": f"Weekend hike — nature therapy! #outdoors"}
+    ]
+    facebook_posts = [
+        {"message": f"Family dinner in {city} was delightful! #foodie"},
+        {"message": f"Completed my first 5K today — feeling energized! 🏃‍♂️"},
+        {"message": f"Movie night with friends 🍿🎬 #relax"}
+    ]
+
     return {
-        "twitter": {
-            "tweets": [
-                {"text": "Just started using SammySwipe! Can't wait to meet new people. #dating #tech"},
-                {"text": "Visited the Grand Canyon this weekend. Absolutely breathtaking views! #travel #adventure"},
-                {"text": "New gadgets are always fun to try out! Currently testing the latest smartphone #technology"}
-            ]
-        },
-        "instagram": {
-            "media": {
-                "data": [
-                    {"caption": "Beautiful sunset at Malibu Beach! The colors were incredible 🌅 #travel #sunset #beach"},
-                    {"caption": "Tried this new restaurant downtown. The food was absolutely amazing! 🍕🍷 #food #foodie"},
-                    {"caption": "Mountain hiking trip with friends - reached the summit! 🏔️ #nature #hiking #mountains"}
-                ]
-            }
-        },
-        "facebook": {
-            "posts": {
-                "data": [
-                    {"message": "Enjoying the weekend with friends at the lake house! Such a refreshing getaway."},
-                    {"message": "Just discovered this amazing coffee shop downtown. Their lattes are to die for!"},
-                    {"message": "Completed my first half marathon today! So proud of this achievement 🏃‍♂️"}
-                ]
-            }
-        }
+        "twitter":   {"tweets": twitter_posts},
+        "instagram": {"media": {"data": instagram_posts}},
+        "facebook":  {"posts": {"data": facebook_posts}}
     }
+
 
 async def store_user_topics(user_id: str, topics: Dict[str, float]) -> bool:
     """
@@ -198,86 +242,66 @@ async def store_user_topics(user_id: str, topics: Dict[str, float]) -> bool:
 
 async def get_user_topics(user_id: str) -> Dict[str, float]:
     """
-    Retrieve user's topics from Neo4j
-    
-    In a real implementation, this would execute:
-    MATCH (u:User {id:user_id})-[r:HAS_TOPIC]->(t:Topic)
-    RETURN t.name, r.score
+    Fetch one random user, then generate
+    4–7 topic affinities using your interest generator.
     """
-    # For demonstration, return more realistic data with varied topics
     import random
-    
-    # List of potential topics with score ranges
-    potential_topics = {
-        "Travel": (0.7, 0.95),
-        "Photography": (0.6, 0.9),
-        "Food & Dining": (0.65, 0.85),
-        "Music": (0.5, 0.85),
-        "Movies": (0.6, 0.8),
-        "Reading": (0.5, 0.8),
-        "Sports": (0.5, 0.9),
-        "Fitness": (0.6, 0.9),
-        "Technology": (0.65, 0.9),
-        "Art": (0.5, 0.85),
-        "Fashion": (0.5, 0.8),
-        "Gaming": (0.6, 0.9),
-        "Cooking": (0.6, 0.85),
-        "Outdoors": (0.65, 0.9),
+
+    # Grab one fresh profile
+    users = await fetch_random_users(1)
+    if not users:
+        return {}
+
+    # Pick 4–7 interests for “this” user
+    interests = generate_random_interests_for_user()
+    selected = random.sample(interests, k=random.randint(4, len(interests)))
+
+    # Assign each a random score 0.5–0.95
+    topics = {
+        topic: round(random.uniform(0.5, 0.95), 2)
+        for topic in selected
     }
-    
-    # Select 4-8 random topics
-    selected_topics = random.sample(list(potential_topics.keys()), random.randint(4, 8))
-    
-    # Generate random scores within the defined ranges
-    result = {}
-    for topic in selected_topics:
-        min_score, max_score = potential_topics[topic]
-        result[topic] = round(random.uniform(min_score, max_score), 2)
-    
-    # Sort by score descending
-    return dict(sorted(result.items(), key=lambda item: item[1], reverse=True))
+
+    # Return sorted descending by score
+    return dict(sorted(topics.items(), key=lambda kv: kv[1], reverse=True))
 
 async def get_recommendations_for_user(user_id: str, limit: int = 10) -> List[Dict[str, Any]]:
     """
-    Get personalized match recommendations for a user
-    
-    In a real implementation, this would query Neo4j for potential matches
-    based on interests, location, and other factors
-    
-    Args:
-        user_id: ID of the user to get recommendations for
-        limit: Maximum number of recommendations to return
-        
-    Returns:
-        List of potential matches with match scores
+    For demo (or in SUPERADMIN_MODE), fetch `limit`
+    profiles via RandomUser.me and turn them into
+    “match” recommendations with real names/photos
+    plus generated interests and scores.
     """
-    # For demonstration, return random users with random match scores
+    # If real DB mode, you’d run a Cypher MATCH here; else:
     users = await fetch_random_users(limit)
-    recommendations = []
-    
-    for user in users:
-        # Create a match recommendation
-        match = {
-            "id": user["login"]["uuid"],
-            "full_name": f"{user['name']['first']} {user['name']['last']}",
-            "bio": f"Hi, I'm {user['name']['first']}! I'm from {user['location']['city']} and enjoy meeting new people.",
+    recs = []
+
+    for u in users:
+        first = u["name"]["first"]
+        city  = u["location"]["city"]
+        country = u["location"]["country"]
+        # Base payload
+        rec = {
+            "id": u["login"]["uuid"],
+            "full_name": f"{first} {u['name']['last']}",
+            "bio":     f"Hi, I'm {first} from {city}! Nice to meet you.",
             "interests": generate_random_interests_for_user(),
-            "location": f"{user['location']['city']}, {user['location']['country']}",
-            "birth_date": user["dob"]["date"],
-            "profile_photo": user["picture"]["large"],
-            "match_score": round(float(abs(int(user["location"]["coordinates"]["latitude"]))) / 100.0, 2) % 1.0,
-            "common_topics": generate_random_interests_for_user()[:3]  # Common topics/interests
+            "location": f"{city}, {country}",
+            "birth_date": u["dob"]["date"],
+            "profile_photo": u["picture"]["large"],
+            # Derive a pseudo “match_score” from latitude
+            "match_score": None,
+            "common_topics": None
         }
-        
-        # Ensure match score is between 0.4 and 0.95
-        if match["match_score"] < 0.4:
-            match["match_score"] += 0.4
-        elif match["match_score"] > 0.95:
-            match["match_score"] = 0.95
-        
-        recommendations.append(match)
-    
-    # Sort by match score (descending)
-    recommendations.sort(key=lambda x: x["match_score"], reverse=True)
-    
-    return recommendations 
+        # A quick match_score in [.4, .95]
+        raw = abs(int(float(u["location"]["coordinates"]["latitude"])))
+        ms = (raw % 100) / 100.0
+        rec["match_score"] = min(max(ms, 0.4), 0.95)
+
+        # Pick 3 “common” topics
+        rec["common_topics"] = generate_random_interests_for_user()[:3]
+        recs.append(rec)
+
+    # Sort top to bottom
+    recs.sort(key=lambda x: x["match_score"], reverse=True)
+    return recs

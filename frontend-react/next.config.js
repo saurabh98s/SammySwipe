@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  output: 'standalone',
   images: {
     domains: ['localhost'],
   },
@@ -8,7 +9,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:8000/api/v1/:path*',
+        destination: (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/:path*',
       },
     ];
   },

@@ -1,28 +1,27 @@
 # Core dependencies
-fastapi>=0.110.0
-pydantic>=2.7.1
-pydantic-settings>=2.2.0
-uvicorn>=0.27.0
-python-dotenv>=1.0.0
-python-jose>=3.3.0
-python-multipart>=0.0.9
+fastapi==0.109.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+uvicorn==0.25.0
+python-dotenv==1.0.0
+python-jose==3.3.0
+python-multipart==0.0.6
 
 # Database and storage
-neo4j>=5.15.0
+neo4j==5.15.0
 
 # API communication
-requests>=2.31.0
-httpx>=0.24.1
+requests==2.31.0
 
 # Password hashing
-passlib>=1.7.4
-bcrypt>=4.0.1
+passlib==1.7.4
+bcrypt==4.1.2
 
 # JWT handling
 PyJWT>=2.8.0
 
 # DateTime handling
-python-dateutil>=2.8.2
+python-dateutil==2.8.2
 
 # External integrations
 aiohttp>=3.9.0

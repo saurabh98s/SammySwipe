@@ -42,7 +42,10 @@ export default function DiscoverPage() {
     try {
       await matches.like(userId);
       removeCard();
-      toast.success('You liked this person!');
+      toast.success('You liked this person! View them in your Matches tab.', {
+        duration: 3000,
+        icon: '❤️'
+      });
     } catch (error) {
       console.error('Error liking user:', error);
       toast.error('Failed to like this person');

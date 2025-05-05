@@ -10,9 +10,9 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     
     # Neo4j settings
-    NEO4J_URI: str = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+    NEO4J_URI: str = os.getenv("NEO4J_URI", "bolt://neo4j:7687")
     NEO4J_USER: str = os.getenv("NEO4J_USER", "neo4j")
-    NEO4J_PASSWORD: str = os.getenv("NEO4J_PASSWORD", "password")
+    NEO4J_PASSWORD: str = os.getenv("NEO4J_PASSWORD", "sammy_swipe_secret")
     
     # JWT settings
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "your-secret-key")

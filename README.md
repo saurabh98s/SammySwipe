@@ -140,4 +140,44 @@ The integration with RandomUser API is implemented in:
 
 ## Credits
 
-This application uses data from the RandomUser API (https://randomuser.me), which provides randomly generated user data for testing and demonstration purposes. 
+This application uses data from the RandomUser API (https://randomuser.me), which provides randomly generated user data for testing and demonstration purposes.
+
+## Docker Setup
+
+The easiest way to run SammySwipe is using Docker:
+
+### Prerequisites
+
+- Docker and Docker Compose installed on your system
+
+### Running with Docker
+
+1. Clone the repository
+   ```bash
+   git clone https://github.com/yourusername/SammySwipe.git
+   cd SammySwipe
+   ```
+
+2. Run the application
+   ```bash
+   ./run_docker.sh
+   ```
+
+3. If you need to manually populate the database with users:
+   ```bash
+   ./populate_db.sh
+   ```
+
+4. Access the application:
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:8000/docs
+   - Neo4j Database: http://localhost:7474/browser/ (username: neo4j, password: sammyswipe_password)
+
+5. To stop the application:
+   ```bash
+   docker-compose down
+   ```
+
+### Superuser Mode
+
+To access all routes without authentication, toggle the superuser mode on the login page. 
