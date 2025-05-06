@@ -9,13 +9,17 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements first for better caching
 COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY backend/requirements-ml.txt .
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-ml.txt email-validator
 
 # Copy the rest of the backend code
 COPY backend/ .
+
+# Download NLTK data
+RUN python -m nltk.downloader punkt stopwords
 
 # Expose port
 EXPOSE 8000
 
 # Command to run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"] 
+CMD ["sh", "-c", "cd /app && chmod +x start.sh && ./start.sh"] 

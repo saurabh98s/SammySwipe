@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Body
 from typing import Any, List, Dict, Optional
 from ..models.user import UserUpdate, UserResponse, UserInDB, UserPreferences
-from ..services.auth import get_current_active_user
+from ..services.auth import get_current_active_user, get_current_user
 from ..db.database import db
 from ..db.neo4j_client import get_user_raw_interests, store_user_topics
 import base64
 from pydantic import BaseModel
+from starlette.requests import Request          # keep this import
 
 # Mock the ML pipeline imports
 class SocialDataPreprocessor:
@@ -65,11 +66,10 @@ class UpdateProfileRequest(BaseModel):
     social_handles: Optional[SocialHandles] = None
 
 @router.get("/users/me", response_model=UserResponse)
-async def read_user_me(
-    current_user: UserInDB = Depends(get_current_active_user),
-) -> Any:
+async def get_me(
+    current_user: UserInDB = Depends(get_current_user),
+):
     return current_user
-
 @router.put("/users/me", response_model=UserResponse)
 async def update_user_me(
     user_in: UserUpdate,

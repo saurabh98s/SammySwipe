@@ -36,18 +36,18 @@ class Neo4jDatabase:
 
     def execute_query(self, query: str, parameters: dict = None) -> list[dict[str, Any]]:
         # In superadmin mode, return mock data instead of executing real queries
-        if self._superadmin_mode:
-            return self._mock_query_response(query, parameters or {})
+        # if self._superadmin_mode:
+        #     return self._mock_query_response(query, parameters or {})
         
         try:
-            with self.connect().session() as session:
+            with self.connect().session(database="neo4j") as session:
                 result = session.run(query, parameters or {})
                 return [dict(record) for record in result]
         except Exception as e:
             logger.error(f"Database query error: {str(e)}")
-            if self._superadmin_mode:
-                logger.info("Returning mock data due to database error in superadmin mode")
-                return self._mock_query_response(query, parameters or {})
+            # if self._superadmin_mode:
+            #     logger.info("Returning mock data due to database error in superadmin mode")
+            #     return self._mock_query_response(query, parameters or {})
             raise
 
     def _mock_query_response(self, query: str, parameters: dict) -> List[Dict[str, Any]]:
@@ -147,7 +147,7 @@ class Neo4jDatabase:
         ]
         
         try:
-            with self.connect().session() as session:
+            with self.connect().session(database="neo4j") as session:
                 for constraint in constraints:
                     try:
                         session.run(constraint)

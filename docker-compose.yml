@@ -6,8 +6,8 @@ services:
     image: neo4j:5.15.0
     container_name: sammyswipe-neo4j
     ports:
-      - "7474:7474"  # HTTP
-      - "7687:7687"  # Bolt
+      - "7474:7474"  
+      - "7687:7687"
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
@@ -15,12 +15,17 @@ services:
       - NEO4J_AUTH=neo4j/sammy_swipe_secret
       - NEO4J_PLUGINS=["apoc"]
       - NEO4J_dbms_memory_heap_max__size=2G
+      - NEO4J_apoc_export_file_enabled=true
+      - NEO4J_apoc_import_file_enabled=true
+      - NEO4J_dbms_default__database=neo4j
     healthcheck:
-      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "sammyswipe_password", "-d", "neo4j", "MATCH () RETURN count(*) as count"]
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "sammy_swipe_secret", "-d", "neo4j", "MATCH () RETURN count(*) as count"]
       interval: 10s
       timeout: 10s
       retries: 20
       start_period: 40s
+    networks:
+      - sammy_net
 
   # Data Initialization Service
   init:

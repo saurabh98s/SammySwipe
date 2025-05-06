@@ -8,6 +8,8 @@ from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from ..db.database import db
 import os
+from typing import Optional  
+from starlette.requests import Request          # make sure this import is present
 
 settings = get_settings()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -31,32 +33,48 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     )
     return encoded_jwt
 
-async def get_current_user(token: str = Depends(oauth2_scheme), request: Request = None) -> UserInDB:
-    # Check if we're in development/superadmin mode
-    superadmin_mode = os.getenv("SUPERADMIN_MODE", "False").lower() == "true"
-    
-    if superadmin_mode:
-        # Return a superadmin user with all privileges
+from datetime import datetime, timedelta
+import os
+
+# ---------------------------------------------------------------------------
+# constants – used both here and in matches.py
+# ---------------------------------------------------------------------------
+SUPERADMIN_MODE   = os.getenv("SUPERADMIN_MODE", "False").lower() == "true"
+SUPERADMIN_DB_ID  = os.getenv("SUPERADMIN_DB_ID",  "00000000-0000-0000-0000-000000admin")
+SUPERADMIN_EMAIL  = os.getenv("SUPERADMIN_EMAIL", "superadmin@example.com")
+SUPERADMIN_UNAME  = os.getenv("SUPERADMIN_USERNAME", "superadmin")
+
+async def get_current_user(
+    request: Request,
+    token: str = Depends(oauth2_scheme),
+) -> UserInDB:
+
+    # ──────────────────────────────────────────────────────────────────────
+    # 1. super-admin short-circuit
+    # ──────────────────────────────────────────────────────────────────────
+    if SUPERADMIN_MODE:
         return UserInDB(
-            id="superadmin-id",
-            email="superadmin@sammyswipe.com",
-            username="superadmin",
+            id=SUPERADMIN_DB_ID,
+            email=SUPERADMIN_EMAIL,
+            username=SUPERADMIN_UNAME,
             full_name="Super Admin",
             hashed_password="",
             is_active=True,
             is_verified=True,
-            birth_date=datetime.now() - timedelta(days=365*30),
+            birth_date=datetime(1980, 1, 1),
             gender="other",
-            interests=["admin", "debugging"],
-            bio="System administrator",
-            location="Server",
+            interests=["Technology","Food", "Gaming","Cars","Traveling"],
+            bio="I keep the lights on 👑",
+            location="Nowhere",
             profile_photo="https://example.com/admin.jpg",
-            created_at=datetime.now(),
-            updated_at=datetime.now()
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
         )
-    
+
+    # ──────────────────────────────────────────────────────────────────────
+    # 2. no token → return a stub test user (development convenience)
+    # ──────────────────────────────────────────────────────────────────────
     if token is None:
-        # For development or testing, create a default test user
         return UserInDB(
             id="test-user-id",
             email="test@sammyswipe.com",
@@ -65,16 +83,19 @@ async def get_current_user(token: str = Depends(oauth2_scheme), request: Request
             hashed_password="",
             is_active=True,
             is_verified=True,
-            birth_date=datetime.now() - timedelta(days=365*25),
+            birth_date=datetime.utcnow() - timedelta(days=365 * 25),
             gender="other",
             interests=["testing", "debugging"],
             bio="Test user for development",
             location="Test Location",
             profile_photo="https://example.com/test.jpg",
-            created_at=datetime.now(),
-            updated_at=datetime.now()
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
         )
-        
+
+    # ──────────────────────────────────────────────────────────────────────
+    # 3. normal JWT validation path
+    # ──────────────────────────────────────────────────────────────────────
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -84,24 +105,22 @@ async def get_current_user(token: str = Depends(oauth2_scheme), request: Request
         payload = jwt.decode(
             token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
         )
-        email: str = payload.get("sub")
+        email: str | None = payload.get("sub")
         if email is None:
             raise credentials_exception
         token_data = TokenData(email=email)
     except JWTError:
         raise credentials_exception
-        
+
     query = """
-    MATCH (u:User {email: $email})
+    MATCH (u:User {email:$email})
     RETURN u
     """
     result = db.execute_query(query, {"email": token_data.email})
-    
     if not result:
         raise credentials_exception
-        
-    user_data = result[0]["u"]
-    return UserInDB(**user_data)
+
+    return UserInDB(**result[0]["u"])
 
 async def get_current_active_user(
     current_user: UserInDB = Depends(get_current_user)
