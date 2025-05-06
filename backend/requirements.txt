@@ -29,4 +29,7 @@ aiohttp>=3.9.0
 PyJWT>=2.6.0
 
 # Include ML dependencies 
--r requirements-ml.txt 
+-r requirements-ml.txt
+
+# Add email-validator for Pydantic
+email-validator>=2.0.0 

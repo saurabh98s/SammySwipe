@@ -179,89 +179,45 @@ def generate_mock_matches(count: int = 10) -> List[Dict[str, Any]]:
 
 def create_match(user_id: str, matched_user_id: str, match_score: float) -> Dict[str, Any]:
     """
-    Create a match between two users with 'pending' status
-    
-    Args:
-        user_id: ID of the user who likes the other user
-        matched_user_id: ID of the user being liked
-        match_score: Match score between the two users
-        
-    Returns:
-        The created match relationship
+    Creates or updates (:User {id:user_id})-[:MATCHED]->(:User {id:matched_user_id})
+    Always writes to Neo4j, even in SUPERADMIN_MODE, so downstream queries work.
     """
-    # Check if in superadmin mode
-    superadmin_mode = os.getenv("SUPERADMIN_MODE", "False").lower() == "true"
-    
-    if superadmin_mode:
-        # Return mock match data
-        return {
-            "score": match_score,
-            "created_at": datetime.now().isoformat(),
-            "status": "pending"
-        }
-        
-    query = """
-    MATCH (u1:User {id: $user_id}), (u2:User {id: $matched_user_id})
-    CREATE (u1)-[r:MATCHED {
-        score: $match_score,
-        created_at: datetime(),
-        status: 'pending'
-    }]->(u2)
+    cypher = """
+    MATCH (u1:User {id:$user_id}), (u2:User {id:$matched_user_id})
+    MERGE (u1)-[r:MATCHED]->(u2)
+    ON CREATE SET
+        r.created_at = datetime(),
+        r.status     = 'pending'
+    SET  r.score = $match_score  
     RETURN r
     """
-    
-    try:
-        result = db.execute_query(
-            query,
-            {
-                "user_id": user_id,
-                "matched_user_id": matched_user_id,
-                "match_score": match_score
-            }
-        )
-        
-        # Check if there is a mutual match (other user has already liked this user)
-        mutual_query = """
-        MATCH (u1:User {id: $user_id})<-[r:MATCHED]-(u2:User {id: $matched_user_id})
-        WHERE r.status = 'pending'
-        RETURN r
-        """
-        
-        mutual_result = db.execute_query(
-            mutual_query,
-            {
-                "user_id": user_id,
-                "matched_user_id": matched_user_id
-            }
-        )
-        
-        # If there is a mutual match, update both relationships to 'accepted'
-        if mutual_result:
-            update_query = """
-            MATCH (u1:User {id: $user_id})-[r1:MATCHED]->(u2:User {id: $matched_user_id}),
-                  (u1)<-[r2:MATCHED]-(u2)
-            SET r1.status = 'accepted', r1.accepted_at = datetime(),
-                r2.status = 'accepted', r2.accepted_at = datetime()
+    result = db.execute_query(
+        cypher,
+        {"user_id": user_id, "matched_user_id": matched_user_id, "match_score": match_score},
+    )
+    rel = result[0]["r"]
+
+    # ------------------------------------------------------------------ #
+    # 2. if the *other* user already liked us → mark both as accepted    #
+    # ------------------------------------------------------------------ #
+    mutual_q = """
+    MATCH (u1:User {id:$user_id})<-[r:MATCHED {status:'pending'}]-
+          (u2:User {id:$matched_user_id})
+    RETURN r
+    """
+    if db.execute_query(mutual_q, {"user_id": user_id, "matched_user_id": matched_user_id}):
+        db.execute_query(
             """
-            
-            db.execute_query(
-                update_query,
-                {
-                    "user_id": user_id,
-                    "matched_user_id": matched_user_id
-                }
-            )
-            
-        return result[0]["r"]
-    except Exception as e:
-        print(f"Error creating match: {e}")
-        if superadmin_mode:
-            return {
-                "score": match_score,
-                "created_at": datetime.now().isoformat(),
-                "status": "pending"
-            }
-        return {}
+            MATCH (a:User {id:$user_id})-[r1:MATCHED]->(b:User {id:$matched_user_id}),
+                  (b)-[r2:MATCHED]->(a)
+            SET   r1.status = 'accepted', r1.accepted_at = datetime(),
+                  r2.status = 'accepted', r2.accepted_at = datetime()
+            """,
+            {"user_id": user_id, "matched_user_id": matched_user_id},
+        )
+
+    return rel
+
 
 def accept_match(user_id: str, matched_user_id: str) -> Dict[str, Any]:
     # Check if in superadmin mode

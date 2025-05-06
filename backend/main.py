@@ -7,6 +7,10 @@ from .db.neo4j_client import populate_database_with_random_users
 import asyncio
 import logging
 
+# Import our ML service for initialization
+from .ml.matching_service import matching_service
+from .services.ml_integration import ml_service
+
 settings = get_settings()
 
 app = FastAPI(
@@ -50,7 +54,7 @@ async def startup_event():
             result = db.execute_query(query)
             existing_users = result[0]["user_count"] if result else 0
             
-            if existing_users > 0:
+            if existing_users > 20000:
                 logger.info(f"Database already contains {existing_users} users. Skipping population.")
             else:
                 logger.info(f"Populating database with {settings.RANDOM_USER_COUNT} random users...")
@@ -61,6 +65,24 @@ async def startup_event():
             logger.error(f"Failed to initiate database population: {str(e)}")
     else:
         logger.info("Automatic database population is disabled")
+    
+    # Initialize ML components
+    try:
+        # The matching_service is already initialized when imported
+        logger.info("ML matching service initialized successfully")
+        
+        # Initialize NLTK for text analysis if needed
+        import nltk
+        try:
+            nltk.data.find('tokenizers/punkt')
+            nltk.data.find('corpora/stopwords')
+        except LookupError:
+            logger.info("Downloading required NLTK data...")
+            nltk.download('punkt')
+            nltk.download('stopwords')
+            logger.info("NLTK data downloaded successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize ML components: {str(e)}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
