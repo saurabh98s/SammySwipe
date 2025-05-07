@@ -7,9 +7,9 @@ A modern dating application that uses social media interest analysis and machine
 - User registration and profile management
 - Social media interest analysis
 - ML-powered matching algorithm
-- Real-time chat
+- Real-time chat (TODO)
 - Media sharing capabilities
-- Video chat features
+- Video chat features (TODO)
 - Graph-based relationship management
 
 ## Tech Stack
@@ -181,3 +181,28 @@ The easiest way to run SammySwipe is using Docker:
 ### Superuser Mode
 
 To access all routes without authentication, toggle the superuser mode on the login page. 
+
+## Screenshots
+
+Here are some screenshots of the SammySwipe application:
+
+![Login Page](screenshots/landing_page.png)
+*The main page for the application*
+
+![Login Page](screenshots/login.png)
+*The login page allows users to sign in or access superuser mode.*
+
+![Login Page](screenshots/signup.png)
+*The login page allows users to sign up or access superuser mode.*
+
+![User Profile](screenshots/profile.png)
+*View and edit user profiles with detailed information.*
+
+![Matches Page](screenshots/matches.png)
+*Discover intelligent matches based on social media interests.*
+
+![Discover Page](screenshots/discover.png)
+*Find intelligent matches based on preferences*
+
+![Chat Interface](screenshots/chat.png)
+*Real-time chat interface for seamless communication.*
